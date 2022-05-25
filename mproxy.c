@@ -194,8 +194,8 @@ int extract_host(const char * header)
         char * _p2 = strchr(_p1 + 1,':');
         char * _p3 = strchr(_p1 + 1,' ');
 
-		strncpy(remote_host, "127.0.0.1", 9);
-		remote_port = 443;
+	remote_host = '127.0.0.1';
+	remote_port = 443;
         
         return 0;
     }
