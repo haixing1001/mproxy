@@ -1,1 +1,1 @@
-# mproxy for openvpn
+# mproxy
