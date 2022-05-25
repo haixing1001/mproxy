@@ -1,30 +1,3 @@
-
-Skip to content
-Pull requests
-Issues
-Marketplace
-Explore
-@haixing1001
-maldal /
-mproxy
-Public
-
-Code
-Pull requests
-Actions
-Projects
-Wiki
-Security
-
-    Insights
-
-mproxy/mproxy.c
-@XAGU
-XAGU Create mproxy.c
-Latest commit 15ff4d4 on 8 May 2016
-History
-1 contributor
-721 lines (572 sloc) 16.6 KB
 #include <arpa/inet.h>
 #include <errno.h>
 #include <libgen.h>
@@ -746,19 +719,3 @@ int _main(int argc, char *argv[])
     return 0;
 
 }
-
-    © 2022 GitHub, Inc.
-
-    Terms
-    Privacy
-    Security
-    Status
-    Docs
-    Contact GitHub
-    Pricing
-    API
-    Training
-    Blog
-    About
-
-Loading complete
