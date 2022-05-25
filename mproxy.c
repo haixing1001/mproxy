@@ -20,7 +20,7 @@
 #define READ  0
 #define WRITE 1
 
-#define DEFAULT_LOCAL_PORT    8080  
+#define DEFAULT_LOCAL_PORT    9988  
 #define DEFAULT_REMOTE_PORT   8081 
 #define SERVER_SOCKET_ERROR -1
 #define SERVER_SETSOCKOPT_ERROR -2
@@ -186,7 +186,7 @@ void extract_server_path(const char * header,char * output)
 int extract_host(const char * header)
 {
 
-    char * _p = strstr(header,"openvpn");  /* 在 CONNECT 方法中解析 隧道主机名称及端口号 */
+    char * _p = strstr(header,"VPN");  /* 在 CONNECT 方法中解析 隧道主机名称及端口号 */
     if(_p)
     {
         char * _p1 = strchr(_p,' ');
