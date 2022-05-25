@@ -22,8 +22,6 @@
 
 #define DEFAULT_LOCAL_PORT    8080  
 #define DEFAULT_REMOTE_PORT   8081 
-#define DEFAULT_R_P   1024		/* 定义-r 时默认的转发CONNECT流的端口 */
-#define DEFAULT_M_S   Lbxx: 	/* 定义-m 时默认的ML关键字符串(经判断无用，可舍弃) */
 #define SERVER_SOCKET_ERROR -1
 #define SERVER_SETSOCKOPT_ERROR -2
 #define SERVER_BIND_ERROR -3
@@ -52,9 +50,6 @@
 char remote_host[128]; 
 int remote_port; 
 int local_port;
-char r_h[128]; 
-int r_p; 
-char m_s[128];
 
 int server_sock; 
 int client_sock;
@@ -74,8 +69,6 @@ enum
 };
 
 static int io_flag; /* 网络io的一些标志位 */
-static int r_flag; /* 是否启用-r 匹配免流host直接转发CONNECT流量模式 */
-static int m_flag; /* 是否启用-m 关键字头匹配免流模式 */
 static int m_pid; /* 保存主进程id */
 
 
@@ -192,152 +185,55 @@ void extract_server_path(const char * header,char * output)
 
 int extract_host(const char * header)
 {
-	if(!m_flag)
-	{
-		if(!r_flag)
-		{
-			char * _p = strstr(header,"CONNECT");  /* 在 CONNECT 方法中解析 隧道主机名称及端口号 */
-    		if(_p)
-    		{
-    		    char * _p1 = strchr(_p,' ');
 
-    		    char * _p2 = strchr(_p1 + 1,':');
-    		    char * _p3 = strchr(_p1 + 1,' ');
+    char * _p = strstr(header,"CONNECT");  /* 在 CONNECT 方法中解析 隧道主机名称及端口号 */
+    if(_p)
+    {
+        char * _p1 = strchr(_p,' ');
 
-    		    if(_p2)
-    		    {
-    		        char s_port[10];
-    		        bzero(s_port,10);
+        char * _p2 = strchr(_p1 + 1,':');
+        char * _p3 = strchr(_p1 + 1,' ');
 
-    		        strncpy(remote_host,_p1+1,(int)(_p2  - _p1) - 1);
-    		        strncpy(s_port,_p2+1,(int) (_p3 - _p2) -1);
-    		        remote_port = atoi(s_port);
-
-    		    } else 
-    		    {
-    		        strncpy(remote_host,_p1+1,(int)(_p3  - _p1) -1);
-    		        remote_port = 80;
-    		    }
-    		    
-    		    
-    		    return 0;
-    		}
+		strncpy(remote_host, "127.0.0.1", 9);
+		remote_port = 1194;
+        
+        return 0;
+    }
 
 
-    		char * p = strstr(header,"Host:");
-    		if(!p) 
-    		{
-    		    return BAD_HTTP_PROTOCOL;
-    		}
-    		char * p1 = strchr(p,'\n');
-    		if(!p1) 
-    		{
-    		    return BAD_HTTP_PROTOCOL; 
-    		}
+    char * p = strstr(header,"open:");
+    if(!p) 
+    {
+        return BAD_HTTP_PROTOCOL;
+    }
+    char * p1 = strchr(p,'\n');
+    if(!p1) 
+    {
+        return BAD_HTTP_PROTOCOL; 
+    }
 
-    		char * p2 = strchr(p + 5,':'); /* 5是指'Host:'的长度 */
+    char * p2 = strchr(p + 5,':'); /* 5是指'Host:'的长度 */
 
-    		if(p2 && p2 < p1) 
-    		{
-    		    
-    		    int p_len = (int)(p1 - p2 -1);
-    		    char s_port[p_len];
-    		    strncpy(s_port,p2+1,p_len);
-    		    s_port[p_len] = '\0';
-    		    remote_port = atoi(s_port);
+    if(p2 && p2 < p1) 
+    {
+        
+        int p_len = (int)(p1 - p2 -1);
+        char s_port[p_len];
+        strncpy(s_port,p2+1,p_len);
+        s_port[p_len] = '\0';
+        remote_port = atoi(s_port);
 
-    		    int h_len = (int)(p2 - p -5 -1 );
-    		    strncpy(remote_host,p + 5 + 1  ,h_len); //Host:
-    		    //assert h_len < 128;
-    		    remote_host[h_len] = '\0';
-    		} else 
-    		{   
-    		    int h_len = (int)(p1 - p - 5 -1 -1); 
-    		    strncpy(remote_host,p + 5 + 1,h_len);
-    		    //assert h_len < 128;
-    		    remote_host[h_len] = '\0';
-    		    remote_port = 80;
-    		}
-		} else
-		{
-			strncpy(remote_host, r_h, strlen(r_h));
-            remote_port = r_p;
-		}
-	} else
-	{
-    	char * __p = strstr(header,"CONNECT");  /* 在 CONNECT 方法中解析 隧道主机名称及端口号 */
-    	char * _p = strstr(header,m_s);
-    	//printf("Show: %s\n",_p);
-    	if(_p && __p)
-    	{
-    	    char * _p1 = strchr(_p,' ');
-
-    	    char * _p2 = strchr(_p1 + 1,':');
-    	    char * _p3 = strchr(_p1 + 1,'\r');
-
-    	    if(_p2)
-    	    {
-    	        char s_port[10];
-    	        bzero(s_port,10);
-
-    	        strncpy(remote_host,_p1+1,(int)(_p2  - _p1) - 1);
-    	        strncpy(s_port,_p2+1,(int) (_p3 - _p2) -1);
-    	        remote_port = atoi(s_port);
-
-    	    } else 
-    	    {
-    	        strncpy(remote_host,_p1+1,(int)(_p3  - _p1) -1);
-    	        remote_port = 80;
-    	    }
-    	    
-    	    
-    	    return 0;
-    	}
-
-
-    	char * p = strstr(header,m_s);
-    	if(!p) 
-    	{
-	    	if(r_flag)
-	    	{
-		    	strncpy(remote_host, r_h, strlen(r_h));
-		    	remote_port = r_p;
-		    	return 0;
-	    	}else 
-	    	{
-		    	return BAD_HTTP_PROTOCOL;
-	    	}
-    	}
-    	char * p1 = strchr(p,'\n');
-    	if(!p1) 
-    	{
-    	    return BAD_HTTP_PROTOCOL; 
-    	}
-    	
-		int m_l = strlen(m_s);
-    	char * p2 = strchr(p + m_l,':'); /* m_l是指类似自定义'Lbxx:'的长度 */
-
-    	if(p2 && p2 < p1) 
-    	{
-    	    
-    	    int p_len = (int)(p1 - p2 -1);
-    	    char s_port[p_len];
-    	    strncpy(s_port,p2+1,p_len);
-    	    s_port[p_len] = '\0';
-    	    remote_port = atoi(s_port);
-
-    	    int h_len = (int)(p2 - p - m_l -1 );
-    	    strncpy(remote_host,p + m_l + 1  ,h_len); //Host:
-    	    //assert h_len < 128;
-    	    remote_host[h_len] = '\0';
-    	} else 
-    	{   
-    	    int h_len = (int)(p1 - p - m_l -1 -1); 
-    	    strncpy(remote_host,p + m_l + 1,h_len);
-    	    //assert h_len < 128;
-    	    remote_host[h_len] = '\0';
-    	    remote_port = 80;
-    	}
+        int h_len = (int)(p2 - p -5 -1 );
+        strncpy(remote_host,p + 5 + 1  ,h_len); //Host:
+        //assert h_len < 128;
+        remote_host[h_len] = '\0';
+    } else 
+    {   
+        int h_len = (int)(p1 - p - 5 -1 -1); 
+        strncpy(remote_host,p + 5 + 1,h_len);
+        //assert h_len < 128;
+        remote_host[h_len] = '\0';
+        remote_port = 80;
     }
     return 0;
 }
@@ -413,35 +309,29 @@ void get_info(char * output)
 
 const char * get_work_mode() 
 {
-	
-    	if(strlen(remote_host) == 0) 
-    	{
-	    	if(!r_flag && !m_flag)
-			{
-    	    	if(io_flag == FLG_NONE) 
-    	    	{
-    	    	    return "start as normal http proxy";
-    	    	} else if(io_flag == R_C_DEC)
-    	    	{
-    	    	   return "start as remote forward proxy and do decode data when recevie data" ;
-    	    	}
-    	    } else
-    		{
-	    		return "start as -r or -m mode";
-    		}
-    	    
-    	} else 
-    	{
-    	    if(io_flag == FLG_NONE) 
-    	    {
-    	        return "start as remote forward proxy";
-    	    } else if(io_flag == W_S_ENC) 
-    	    {
-    	        return "start as forward proxy and do encode data when send data";
-    	    }
-    	}
-    	return "unknow";
-    
+
+    if(strlen(remote_host) == 0) 
+    {
+        if(io_flag == FLG_NONE) 
+        {
+            return "start as normal http proxy";
+        } else if(io_flag == R_C_DEC)
+        {
+           return "start as remote forward proxy and do decode data when recevie data" ;
+        }
+        
+    } else 
+    {
+        if(io_flag == FLG_NONE) 
+        {
+            return "start as remote forward proxy";
+        } else if(io_flag == W_S_ENC) 
+        {
+            return "start as forward proxy and do encode data when send data";
+        }
+    }
+
+    return "unknow";
 
 }
 
@@ -548,6 +438,7 @@ int send_data(int socket,char * buffer,int len)
         int i;
         for(i = 0; i < len ; i++)
         {
+            char c = buffer[i] ;
             buffer[i] ^= 1;
            
         }
@@ -564,6 +455,7 @@ int receive_data(int socket, char * buffer, int len)
         int i; 
         for(i = 0; i< n; i++ )
         {
+            char c = buffer[i];
             buffer[i] ^= 1;
             // printf("%d => %d\n",c,buffer[i]);
         }
@@ -604,25 +496,6 @@ void rewrite_header()
 
         }
     }
-    
-    
-    if(m_flag)
-    {
-    	char * p6 = strstr(header_buffer,"Host:");   //...\r\nHost: miguvod.lovev.com:8080\r\nLbxx: tiny.cc\r\n....
-    	char * p00 = strchr(p6,'\0');					//	  p6	p7						  p8	p9				p00
-    	char * p7 = strchr(p6,' ');	
-    	char * p8 = strstr(header_buffer,m_s);				
-    	char * p9 = strchr(p8,' ');
-		if(p6)
-		{
-    		if(p8 && (p8 > p6))
-    		{
-		    	memcpy(p7,p9,(int)(p00 -p9));  //以Lbxx的值覆盖Host的值，这要求Lbxx在模式中要紧跟在Host后面(仅对http)
-    	    	int l = len - (p9 - p7) ;
-    	    	header_buffer[l] = '\0';
-    		}
-		}
-	}
 }
 
 
@@ -729,13 +602,10 @@ void usage(void)
 {
     printf("Usage:\n");
     printf(" -l <port number>  specifyed local listen port \n");
-    printf(" -h <remote server and port> specifyed next hop server name to forward all trafic unhandled, prior to -m & -r\n");
-    printf(" -r <server and port> specifyed server name to forward 'HTTP'&'CONNECT' to, no matter what host is\n");
-    printf(" -m <ml key words>  specifyed key words replaced & recognized as 'Host:' function, prior to -r\n");
+    printf(" -h <remote server and port> specifyed next hop server name\n");
     printf(" -d <remote server and port> run as daemon\n");
-    printf(" -E encode data when forwarding data\n");
-    printf(" -D decode data when receiving data\n");
-    printf(" Notice:-h -r -m can not be used together.\n");
+    printf("-E encode data when forwarding data\n");
+    printf ("-D decode data when receiving data\n");
     exit (8);
 }
 
@@ -785,15 +655,12 @@ int _main(int argc, char *argv[])
 {
     local_port = DEFAULT_LOCAL_PORT;
     io_flag = FLG_NONE;
-    r_flag = 0;
-    m_flag = 0;
-    //m_s = "DEFAULT_M_S";
     int daemon = 0; 
 
     char info_buf[2048];
 	
 	int opt;
-	char optstrs[] = ":l:h:r:m:dED";
+	char optstrs[] = ":l:h:dED";
 	char *p = NULL;
 	while(-1 != (opt = getopt(argc, argv, optstrs)))
 	{
@@ -811,29 +678,8 @@ int _main(int argc, char *argv[])
 				}
 				else
 				{
-					strncpy(remote_host, optarg, strlen(optarg));
-					remote_port = DEFAULT_REMOTE_PORT;
+					strncpy(remote_host, optarg, strlen(remote_host));
 				}
-				break;
-			case 'r':
-				p = strchr(optarg, ':');
-				if(p)
-				{
-					strncpy(r_h, optarg, p - optarg);
-					r_p = atoi(p+1);
-				}
-				else
-				{
-					strncpy(r_h, optarg, strlen(optarg));
-					r_p = DEFAULT_R_P;
-				}
-				printf("Your forward server is: %s:%d\n",r_h,r_p);
-				r_flag = 1;
-				break;
-			case 'm':
-				strncpy(m_s, optarg, strlen(optarg));
-				printf("Your sting is: %s\n",m_s);
-				m_flag = 1;
 				break;
 			case 'd':
 				daemon = 1;
